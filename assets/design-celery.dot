@@ -28,16 +28,17 @@ digraph Kodiak {
   subgraph cluster_kodiak {
     label = "Kodiak"
 
-    "HTTP Webhook" -> Celery [label="enqueue celery task", weight=0]
-    Celery [shape=hexagon, label="Celery Queue"]
-    
-    "Celery Worker" [label="Celery Worker (1...N)"]
-    "Celery" -> "Celery Worker" [label="process incoming events"]
-    "Celery Worker" -> "GitHub"[label="fetch event information"]
-    "Celery Worker" -> Redis[label="add to merge queue for repo"]
+    "HTTP Webhook" -> Redis [label="add to per-repo ingest queue", weight=0]
     
     "Celery Beat" [shape=doubleoctagon]
+
+    CBIngest [label="Celery Beat Ingest Worker"]
+    "Celery Beat" -> CBIngest [label="create worker for all repos.\nprocess incoming event."]
+    CBIngest -> Redis [label="(A) pull event"]
+    CBIngest -> GitHub [label="(B) get mergeability info"]
+    CBIngest -> Redis [label="(C) Add mergeable prs to merge queue"]
     
+    "Celery Beat Worker" [label="Celery Beat Merge Worker"]
     "Celery Beat" -> "Celery Beat Worker" [label="create worker every few seconds for all repos"]
     "Celery Beat Worker" -> "Redis" [label="(2) pull pr for merging.\nestablish lock on repo. (acks late?)"]
     "Celery Beat Worker" -> Redis [label="(1) check for active PR for repo"]
