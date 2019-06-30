@@ -3,27 +3,6 @@ digraph Kodiak {
   "GitHub"[shape=doublecircle]
 
   "GitHub" -> "HTTP Webhook"[label="HTTP events", weight=0]
-  
-  
-  // NOTES
-  // - Must lock per repo within celery job. If we use beat, we can just skip
-  //   processing a queue if there is a lock
-  // - How do we prevent deadlock for a repo? A job could take a lock and never finish?
-  //   + We may be able to use the Redlock and extend the timeout as we process the job.
-  // - In the cron job we take a lock on our repo, take first PR, process, update, and try to merge.
-  // - Creating a celery job per webhook event may be too much. We probably want
-  //
-  
-  
-  // Non blocking solution
-  // - the default celery idea would have a celery task running coninuously
-  //   until a PR could be merged. We would update a PR, wait for status checks,
-  //   looping at the same time. We can be more efficient!
-  // - the better solution is to store an "active" merge item for a repo. When
-  //   we process a repo queue, we'll move the first item into an "active" merge
-  //   location. Instead of looping when we want to update and merge a PR, we'll
-  //   check this location, letting the celery cron jobs to the looping!
-
 
   subgraph cluster_kodiak {
     label = "Kodiak"
