@@ -21,9 +21,11 @@ asyncio-throttle = "^0.1.1"
 inflection = "^0.3.1"
 markdown-html-finder = "^0.2.0"
 markupsafe = "^1.1"
-fastapi = "^0.33.0"
-sentry-sdk = "^0.10.2"
+fastapi = "^0.42.0"
+sentry-sdk = "^0.13.1"
 requests = "^2.22"
+redis = "^3.3"
+gunicorn = "^19.9"
 
 [tool.poetry.scripts]
 kodiak = 'kodiak.cli:cli'
