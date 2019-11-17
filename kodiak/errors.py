@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Set
+from starlette import status
+from fastapi import HTTPException
 
 from requests_async import Response
 
@@ -69,6 +71,6 @@ class MergeConflict(KodiakException):
         return "merge conflict"
 
 
-@dataclass
-class ServerError(KodiakException):
-    response: Response
+class HTTPBadRequest(KodiakException, HTTPException):
+    def __init__(self, detail: str):
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
