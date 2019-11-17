@@ -17,7 +17,7 @@ from mypy_extensions import TypedDict
 from pydantic import BaseModel
 from starlette import status
 
-import kodiak.app_config as conf
+import kodiak.settings as conf
 from kodiak.config import V1, MergeMethod
 from kodiak.github import events
 from kodiak.throttle import get_thottler_for_installation

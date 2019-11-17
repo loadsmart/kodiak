@@ -12,7 +12,7 @@ from asyncio_redis.connection import Connection as RedisConnection
 from asyncio_redis.replies import BlockingZPopReply
 from pydantic import BaseModel
 
-import kodiak.app_config as conf
+import kodiak.settings as conf
 from kodiak.config import V1
 from kodiak.pull_request import PR, EventInfoResponse, MergeabilityResponse
 from kodiak.queries import Client

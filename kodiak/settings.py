@@ -27,3 +27,6 @@ PRIVATE_KEY = (
     if GITHUB_PRIVATE_KEY_PATH is not None
     else GITHUB_PRIVATE_KEY
 )
+
+GITHUB_WEBHOOK_QUEUE = "github_webhook_queue"
+CHECK_RUN_NAME = "kodiakhq: status"

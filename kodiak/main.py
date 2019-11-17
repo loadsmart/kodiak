@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
 from sentry_sdk.integrations.logging import LoggingIntegration
 
-from kodiak import app_config as conf
+from kodiak import settings as conf
 from kodiak import queries
 from kodiak.github import Webhook, events
 from kodiak.logging import SentryProcessor

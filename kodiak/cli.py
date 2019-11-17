@@ -5,7 +5,7 @@ from typing import List
 import click
 import requests
 
-from kodiak import app_config as conf
+from kodiak import settings as conf
 from kodiak.config import V1
 from kodiak.queries import generate_jwt, get_token_for_install
 
