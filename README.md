@@ -426,7 +426,7 @@ create_mock_pr() {
 }
 ```
 
-### Releasing a new version
+### Releasing a new version on Heroku
 
 ```bash
 GIT_SHA='62fcc1870b609f43b95de41b8be41a2858eb56bd'
@@ -435,4 +435,41 @@ docker pull cdignam/kodiak:$GIT_SHA
 docker tag cdignam/kodiak:$GIT_SHA registry.heroku.com/$APP_NAME/web
 docker push registry.heroku.com/$APP_NAME/web
 heroku container:release -a $APP_NAME web
+```
+
+### Connecting to Redis instance
+This assumes an ssh alias is configured for the Kodiak redis machine `kodiak_redis`.
+
+```bash
+# in one shell
+ssh -L 7379:localhost:6379 -NT kodiak_redis
+
+# in another shell
+redis-cli -p 7379
+```
+
+### Releasing a new version on DigitalOcean
+This assumes an ssh alias is configured for the Kodiak docker machine `kodiak_docker`.
+
+```
+GIT_SHA='62fcc1870b609f43b95de41b8be41a2858eb56bd'
+GITHUB_PRIVATE_KEY=`cat kodiak_private_key_production.pem`
+SECRET_KEY='my-secret-key'
+SENTRY_DSN='https://<KEY>@sentry.io/<PROJECT>'
+REDIS_URL='redis://username:password@my.redis.ip.address'
+GITHUB_APP_ID=29196
+(sudo docker run \
+    --name kodiak-prod \
+    --publish 80:8080 \
+    -e GITHUB_APP_ID="$GITHUB_APP_ID" \
+    -e GITHUB_PRIVATE_KEY="$GITHUB_PRIVATE_KEY" \
+    -e REDISCLOUD_URL="$REDIS_URL" \
+    -e REDIS_POOL_SIZE=250 \
+    -e SECRET_KEY="$SECRET_KEY" \
+    -e SENTRY_DSN='$SENTRY_DSN' \
+    -e PORT=8080 \
+    --init \
+    --detach \
+    --restart always \
+    cdignam/kodiak:$GIT_SHA)
 ```
