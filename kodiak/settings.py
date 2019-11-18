@@ -29,4 +29,6 @@ PRIVATE_KEY = (
 )
 
 GITHUB_WEBHOOK_QUEUE = "github_webhook_queue"
+KNOWN_GITHUB_REPOS = "github_repos"
+SUPERVISOR_CHANNEL = "kodiak_supervisor_channel"
 CHECK_RUN_NAME = "kodiakhq: status"

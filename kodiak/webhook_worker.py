@@ -125,20 +125,16 @@ async def get_webhook_event(
 
 async def process_webhook_payload(msg: str) -> None:
     request = WebhookRequest.parse_raw(msg)
-    maybe_webhook_event = await get_webhook_event(
+    webhook_events = await get_webhook_event(
         event=request.headers["x-github-event"], payload=request.payload
     )
-    if maybe_webhook_event is None:
+    if not webhook_events:
+        log.debug("no webhook events found for msg", msg=msg)
         return None
-    if isinstance(maybe_webhook_event, list):
-        webhook_events = maybe_webhook_event
-    else:
-        webhook_events = [maybe_webhook_event]
-    if len(webhook_events) == 0:
-        return
     redis = await get_redis()
 
-    key = get_repo_queue_key(
+    repo_merge_queue = get_repo_queue_key(
+        # this information for an event will be the same for all results in webhook_events.
         install_id=webhook_events[0].installation_id,
         org=webhook_events[0].repo_owner,
         repo=webhook_events[0].repo_name,
@@ -148,11 +144,18 @@ async def process_webhook_payload(msg: str) -> None:
     for event in webhook_events:
         payload[event.json()] = time.time()
 
-    # TODO(chdsbd): send message (PUBLISH) to supervisor about repo. Should also update SET storing known repos. The supervisor can use this SET for starting workers on boot.
-
     # add our events to the specific per-repo sorted set.
-    await redis.zadd(key, payload, only_if_not_exists=True)
-
+    merge_queue_add_fut = redis.zadd(repo_merge_queue, payload, only_if_not_exists=True)
+    # update our set of known repos. The supervisor can use this SET for starting workers on boot.
+    # TODO(chdsbd): I was thinking we might not need this because we could just
+    # wait until we receive a message in the supervisor, but this ignores the
+    # fact that we could have active merges going on.
+    known_repos_add_fut = redis.sadd(settings.KNOWN_GITHUB_REPOS, repo_merge_queue)
+    # send message to supervisor about activity on repo.
+    # TODO(chdsbd): We should support multiple kinds of messages, so make this richer.
+    supervisor_publish_fut = redis.publish(settings.SUPERVISOR_CHANNEL, repo_merge_queue)
+    await asyncio.gather(merge_queue_add_fut, known_repos_add_fut,supervisor_publish_fut)
+    # TODO(chdsbd): Add error checks to redis results
 
 async def process_webhook_payloads() -> None:
     """
@@ -165,6 +168,11 @@ async def process_webhook_payloads() -> None:
     """
     redis = await get_redis()
     while True:
+        # TODO(chdsbd): Test to see what the max amount of in process tasks are
+        # and limit our fetches by that amount. We can have some counter that we
+        # decrement when we create a task and then we can have a callback on the
+        # task to increment it when finished. We ma want to use an
+        # asyncio.sempahore so we can simple block until the sempahore is upped.
         webhook_event_json: asyncio_redis.BlockingZPopReply = await redis.bzpopmin(
             [settings.GITHUB_WEBHOOK_QUEUE]
         )
