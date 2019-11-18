@@ -25,6 +25,8 @@ log = structlog.get_logger()
 
 
 async def get_redis() -> asyncio_redis.Connection:
+    # TODO: A connection pool would be nice. The one included with asyncio_redis
+    # sucks because it is fixed and doesn't grow.
     try:
         redis_db = int(settings.REDIS_URL.database)
     except ValueError:
