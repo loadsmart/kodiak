@@ -10,6 +10,7 @@ horizontally scalable
 
 import asyncio
 import time
+from typing import List
 
 import asyncio_redis
 
@@ -33,7 +34,6 @@ async def get_redis() -> asyncio_redis.Connection:
         port=settings.REDIS_URL.port or 6379,
         password=settings.REDIS_URL.password or None,
         db=redis_db,
-        poolsize=settings.REDIS_POOL_SIZE,
     )
 
 
@@ -46,8 +46,9 @@ class GitHubAPI:
         raise NotImplementedError
 
 
-def get_repo_queue_key(install_id: str, org: str, repo: str):
+def get_repo_queue_key(install_id: str, org: str, repo: str) -> str:
     return f"repo_merge_queue:{install_id}.{org}/{repo}"
+
 
 async def get_github(owner: str, repo: str, installation_id: str) -> GitHubAPI:
     return await GitHubAPI.create()
@@ -55,7 +56,13 @@ async def get_github(owner: str, repo: str, installation_id: str) -> GitHubAPI:
 
 async def get_webhook_event(
     *, event: str, payload: dict
-) -> Optional[Union[WebhookEvent, List[WebhookEvent]]]:
+) -> List[WebhookEvent]:
+    """
+    Convert a payload from the queue to our WebhookEvent for processing.
+
+    For some GitHub events we can have updates for multiple pull requests, in
+    which case we'll return multiple WebhookEvent's.
+    """
     if event == "pull_request":
         pr = events.PullRequestEvent.parse_obj(payload)
         assert pr.installation is not None
@@ -70,18 +77,17 @@ async def get_webhook_event(
         assert check_run_event.installation
         # Prevent an infinite loop when we update our check run
         if check_run_event.check_run.name == settings.CHECK_RUN_NAME:
-            return
-        results = []
-        for pr in check_run_event.check_run.pull_requests:
-            results.append(
-                WebhookEvent(
-                    repo_owner=check_run_event.repository.owner.login,
-                    repo_name=check_run_event.repository.name,
-                    pull_request_number=pr.number,
-                    installation_id=str(check_run_event.installation.id),
-                )
+            log.debug("skipping event trigger by kodiak", event=event)
+            return []
+        return [
+            WebhookEvent(
+                repo_owner=check_run_event.repository.owner.login,
+                repo_name=check_run_event.repository.name,
+                pull_request_number=pr.number,
+                installation_id=str(check_run_event.installation.id),
             )
-        return results
+            for pr in check_run_event.check_run.pull_requests
+        ]
     if event == "status_event":
         status_event = events.StatusEvent.parse_obj(payload)
         assert status_event.installation
@@ -105,12 +111,14 @@ async def get_webhook_event(
     if event == "pull_request_review":
         review = events.PullRequestReviewEvent.parse_obj(payload)
         assert review.installation
-        return WebhookEvent(
-            repo_owner=review.repository.owner.login,
-            repo_name=review.repository.name,
-            pull_request_number=review.pull_request.number,
-            installation_id=str(review.installation.id),
-        )
+        return [
+            WebhookEvent(
+                repo_owner=review.repository.owner.login,
+                repo_name=review.repository.name,
+                pull_request_number=review.pull_request.number,
+                installation_id=str(review.installation.id),
+            )
+        ]
     log.warning("unhandled event", event=event)
     return None
 
@@ -161,4 +169,3 @@ async def process_webhook_payloads() -> None:
             [settings.GITHUB_WEBHOOK_QUEUE]
         )
         asyncio.create_task(process_webhook_payload(webhook_event_json.value))
-
