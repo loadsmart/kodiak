@@ -466,7 +466,7 @@ GITHUB_APP_ID=29196
     -e REDISCLOUD_URL="$REDIS_URL" \
     -e REDIS_POOL_SIZE=250 \
     -e SECRET_KEY="$SECRET_KEY" \
-    -e SENTRY_DSN='$SENTRY_DSN' \
+    -e SENTRY_DSN="$SENTRY_DSN" \
     -e PORT=8080 \
     --init \
     --detach \
