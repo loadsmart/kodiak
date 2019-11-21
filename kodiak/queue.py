@@ -121,6 +121,7 @@ async def process_webhook_event(
             isinstance(event.config, V1)
             and event.config.merge.do_not_merge
         ):
+            log.debug("skipping merging for PR because `merge.do_not_merge` is configured.")
             return
 
         if (
