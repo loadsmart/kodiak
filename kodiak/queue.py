@@ -125,8 +125,16 @@ async def process_webhook_event(
             isinstance(event.config, V1)
             and event.config.merge.do_not_merge
         ):
+            # we duplicate the status messages found in the mergeability
+            # function here because status messages for WAIT and NEEDS_UPDATE
+            # are only set when Kodiak hits the merging logic.
+            if m_res == MergeabilityResponse.WAIT:
+                await pull_request.set_status(summary="⌛️ waiting for checks")
+            if m_res == MergeabilityResponse.NEEDS_UPDATE:
+                await pull_request.set_status(summary="🔄 need update")
+            if m_res in (MergeabilityResponse.OK, MergeabilityResponse.SKIPPABLE_CHECKS):
+                await pull_request.set_status(summary="✅ okay to merge")
             log.debug("skipping merging for PR because `merge.do_not_merge` is configured.")
-            await pull_request.set_status(summary="✅ okay to merge")
             return
 
         if (
