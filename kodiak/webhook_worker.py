@@ -124,6 +124,30 @@ async def get_webhook_event(
     log.warning("unhandled event", event=event)
     return None
 
+async def process_webhook_event(event: WebhookEvent) -> None:
+    """
+    1. Calculate mergeability for PR associated with WebhookEvent.
+    2. Use mergeability info to update GitHub check status. If merge immediately
+       is configured, merge the PR immediately if appropriate, otherwise add to
+       the merge queue, notify the supervisor of activity, add repo to merge
+       queue set.
+    """
+    
+
+    # TODO(chdsbd): Fix this copied code to work as described in the doc comment.
+    # add our events to the specific per-repo sorted set.
+    merge_queue_add_fut = redis.zadd(repo_merge_queue, payload, only_if_not_exists=True)
+    # update our set of known repos. The supervisor can use this SET for starting workers on boot.
+    # TODO(chdsbd): I was thinking we might not need this because we could just
+    # wait until we receive a message in the supervisor, but this ignores the
+    # fact that we could have active merges going on.
+    known_repos_add_fut = redis.sadd(settings.KNOWN_GITHUB_REPOS, repo_merge_queue)
+    # send message to supervisor about activity on repo.
+    # TODO(chdsbd): We should support multiple kinds of messages, so make this richer.
+    supervisor_publish_fut = redis.publish(settings.SUPERVISOR_CHANNEL, repo_merge_queue)
+    await asyncio.gather(merge_queue_add_fut, known_repos_add_fut,supervisor_publish_fut)
+    # TODO(chdsbd): Add error checks to redis results
+    pass
 
 async def process_webhook_payload(msg: str) -> None:
     request = WebhookRequest.parse_raw(msg)
@@ -144,20 +168,7 @@ async def process_webhook_payload(msg: str) -> None:
 
     payload = dict()
     for event in webhook_events:
-        payload[event.json()] = time.time()
-
-    # add our events to the specific per-repo sorted set.
-    merge_queue_add_fut = redis.zadd(repo_merge_queue, payload, only_if_not_exists=True)
-    # update our set of known repos. The supervisor can use this SET for starting workers on boot.
-    # TODO(chdsbd): I was thinking we might not need this because we could just
-    # wait until we receive a message in the supervisor, but this ignores the
-    # fact that we could have active merges going on.
-    known_repos_add_fut = redis.sadd(settings.KNOWN_GITHUB_REPOS, repo_merge_queue)
-    # send message to supervisor about activity on repo.
-    # TODO(chdsbd): We should support multiple kinds of messages, so make this richer.
-    supervisor_publish_fut = redis.publish(settings.SUPERVISOR_CHANNEL, repo_merge_queue)
-    await asyncio.gather(merge_queue_add_fut, known_repos_add_fut,supervisor_publish_fut)
-    # TODO(chdsbd): Add error checks to redis results
+        asyncio.create_task(process_webhook_event(event))
 
 async def process_webhook_payloads() -> None:
     """
