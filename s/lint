@@ -3,16 +3,16 @@ set -ex
 
 # format code
 if [[ $CI ]]; then
-    poetry run black --check .
+    poetry run black --check kodiak
     poetry run isort --check-only
 else
-    poetry run black .
+    poetry run black kodiak
     poetry run isort -y
 fi
 
 # type check code
-poetry run mypy .
+poetry run mypy kodiak
 
 # lint
 poetry run flake8 kodiak
-poetry run pylint --rcfile='.pylintrc' kodiak tests
+poetry run pylint --rcfile='.pylintrc' kodiak

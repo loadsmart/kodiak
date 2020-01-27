@@ -9,8 +9,8 @@ from starlette.testclient import TestClient
 
 from kodiak import app_config as conf
 from kodiak.main import app
-from tests.test_events import MAPPING
-from tests.test_utils import wrap_future
+from kodiak.test.test_events import MAPPING
+from kodiak.test.test_utils import wrap_future
 
 
 def test_root(client: TestClient) -> None:

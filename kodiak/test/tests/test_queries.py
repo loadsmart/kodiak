@@ -29,7 +29,7 @@ from kodiak.queries import (
     StatusContext,
     StatusState,
 )
-from tests.test_utils import wrap_future
+from kodiak.test.test_utils import wrap_future
 
 
 @pytest.fixture
